@@ -1,0 +1,203 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, interactive-widget=resizes-content">
+<title>بوابة الملفات</title>
+<meta name="theme-color" content="#0a0a0a">
+<meta name="color-scheme" content="dark">
+<meta name="robots" content="noindex">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<style>
+html,body{margin:0;height:100%;overflow:hidden;background:#0a0a0a}
+iframe{position:fixed;inset:0;width:100%;height:100%;border:0;display:block;background:#0a0a0a}
+#cv{position:fixed;inset:0;z-index:2;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:24px;box-sizing:border-box;text-align:center;background:#0a0a0a;color:#f5f1e8;font:15px/1.9 Tahoma,system-ui,sans-serif;transition:opacity .3s}
+#cv.off{opacity:0;visibility:hidden;pointer-events:none;transition:opacity .3s,visibility 0s .3s}
+#cv img{width:88px;height:88px;border-radius:22px}
+#m{max-width:440px;white-space:pre-line}
+#lk{display:none;width:100%;max-width:440px;box-sizing:border-box;direction:ltr;text-align:left;font:14px/1.6 system-ui,sans-serif;padding:10px 12px;border-radius:10px;border:1px solid #c9a55c;background:#111112;color:#f5f1e8}
+#lk.on{display:block}
+#a{display:flex;flex-wrap:wrap;gap:8px;justify-content:center}
+#a:empty{display:none}
+.b{font:inherit;font-weight:700;border-radius:10px;padding:8px 18px;border:1px solid #c9a55c;background:#c9a55c;color:#17110a;text-decoration:none;cursor:pointer}
+.b.q{background:transparent;color:#c9a55c}
+#ld{width:120px;height:2px;background:#c9a55c33;overflow:hidden;position:relative}
+#ld::after{content:'';position:absolute;top:0;bottom:0;width:40%;background:#c9a55c;animation:ld 1.1s ease-in-out infinite}
+@keyframes ld{from{right:-40%}to{right:100%}}
+#t{position:fixed;left:0;right:0;bottom:24px;z-index:3;margin:0 auto;width:fit-content;max-width:calc(100% - 32px);box-sizing:border-box;padding:9px 18px;border-radius:22px;background:rgba(24,24,26,.94);color:#fff;font:14px/1.6 Tahoma,system-ui,sans-serif;text-align:center;opacity:0;transition:opacity .25s;pointer-events:none}
+#t.on{opacity:1}
+#ib{position:fixed;top:10px;left:10px;right:10px;z-index:3;display:none;align-items:center;gap:10px;padding:10px 12px;border-radius:12px;background:#111112;color:#f5f1e8;border:1px solid #c9a55c;font:14px/1.6 Tahoma,system-ui,sans-serif;box-shadow:0 8px 24px rgba(0,0,0,.35)}
+#ib.on{display:flex}
+#ib span{flex:1}
+@media (prefers-reduced-motion:reduce){#ld::after{animation:none;right:30%}}
+</style>
+</head>
+<body>
+<div id="cv" role="status" aria-live="polite"><img src="icon-192.png" alt=""><div id="m">جاري فتح البوابة…</div><input id="lk" type="url" inputmode="url" placeholder="https://script.google.com/macros/s/…/exec" autocomplete="off" spellcheck="false" aria-label="رابط البوابة"><div id="ld"></div><div id="a"></div></div>
+<div id="ib"><span>ثبّت البوابة تطبيقًا على جوالك</span><button class="b" id="ib-ok" type="button">تثبيت</button><button class="b q" id="ib-x" type="button" aria-label="إغلاق">✕</button></div>
+<div id="t" role="status" aria-live="polite"></div>
+<script>
+/* بوابة الملفات — صفحة تثبيت تطبيق الجوال (الإصدار 2)، جهّزتها البوابة من «الإعدادات ← تطبيق الجوال».
+   لا تحوي رابط البوابة: يصلها من زر «تثبيت التطبيق على هذا الجوال» في البوابة (#u=…) ويُحفظ في الجوال فقط. */
+(function () {
+  'use strict';
+  var V = "2";
+  var EXEC = /^https:\/\/script\.google\.com\/(?:a\/macros\/[^\/\s]+|macros)\/s\/[A-Za-z0-9_\-]+\/exec$/;
+  var $ = function (id) { return document.getElementById(id); };
+  var cv = $('cv'), m = $('m'), lk = $('lk'), a = $('a'), ld = $('ld'), t = $('t'), ib = $('ib');
+  var PORTAL = '', f = null, portal = null, origin = '*', ready = false, guard = false, wait = 0, backT = 0, tipT = 0, bip = null;
+  var mem = {
+    get: function (k) { try { return localStorage.getItem(k); } catch (e) { return null; } },
+    set: function (k, v) { try { localStorage.setItem(k, v); } catch (e) { /* التخزين غير متاح */ } }
+  };
+  /* لون شريط الحالة يتبع مظهر البوابة */
+  function paint(c) {
+    if (!/^#[0-9a-fA-F]{6}$/.test(c || '')) return;
+    document.querySelector('meta[name="theme-color"]').setAttribute('content', c);
+    document.documentElement.style.background = c;
+    document.body.style.background = c;
+    cv.style.background = c;
+  }
+  paint(mem.get('bw-bar'));
+  function tip(s) {
+    t.textContent = s;
+    t.classList.add('on');
+    clearTimeout(tipT);
+    tipT = setTimeout(function () { t.classList.remove('on'); }, 2600);
+  }
+  function say(s, btns, input) {
+    m.textContent = s;
+    a.innerHTML = '';
+    lk.classList.toggle('on', !!input);
+    ld.style.display = btns ? 'none' : '';
+    (btns || []).forEach(function (b) {
+      var el = document.createElement(b.href ? 'a' : 'button');
+      el.className = 'b' + (b.q ? ' q' : '');
+      el.textContent = b.label;
+      if (b.href) { el.href = b.href; el.target = '_blank'; el.rel = 'noopener'; } else { el.type = 'button'; el.addEventListener('click', b.run); }
+      a.appendChild(el);
+    });
+    cv.classList.remove('off');
+  }
+  /* رابط البوابة القادم من زر التثبيت: يُقرأ ثم يُزال من شريط العنوان */
+  function incoming() {
+    var hit = /[#&]u=([^&]*)/.exec(location.hash), u = '';
+    if (!hit) return '';
+    try { u = decodeURIComponent(hit[1]); } catch (e) { u = ''; }
+    try { history.replaceState(null, '', location.pathname + location.search); } catch (e) { /* لا شيء */ }
+    return EXEC.test(u) ? u : '';
+  }
+  function idOf(u) { var id = (/\/s\/([^\/]+)\/exec$/.exec(u) || [])[1] || ''; return id.length > 14 ? id.slice(0, 8) + '…' + id.slice(-4) : id; }
+  function link(u) { PORTAL = u; mem.set('bw-portal', u); load(); }
+  function setup() {
+    say('لم يُربط التطبيق ببوابتك بعد.\nافتح البوابة في كروم على هذا الجوال، ثم: الإعدادات ← «تثبيت التطبيق على هذا الجوال».\nأو الصق هنا رابط البوابة الذي ينتهي بـ /exec:', [{ label: 'ربط', run: function () {
+      var v = String(lk.value || '').trim().split(/[?#]/)[0];
+      if (EXEC.test(v)) link(v); else tip('الرابط غير صحيح: يبدأ بـ https://script.google.com وينتهي بـ /exec');
+    } }], true);
+  }
+  function start() {
+    var u = incoming(), saved = mem.get('bw-portal') || '';
+    if (!EXEC.test(saved)) saved = '';
+    if (u && saved && u !== saved) {
+      say('هذا الرابط يربط التطبيق ببوابة أخرى.\nالجديدة: ' + idOf(u) + '\nالمربوطة الآن: ' + idOf(saved), [
+        { label: 'ربطه بالجديدة', run: function () { link(u); } },
+        { label: 'إبقاء المربوطة الآن', run: function () { PORTAL = saved; load(); }, q: true }
+      ]);
+      return;
+    }
+    if (u) link(u);
+    else if (saved) { PORTAL = saved; load(); }
+    else setup();
+  }
+  /* إطار جديد في كل محاولة، فلا تتراكم خطوات في زر الرجوع */
+  function load() {
+    ready = false;
+    portal = null;
+    say('جاري فتح البوابة…');
+    var nf = document.createElement('iframe');
+    nf.title = document.title;
+    nf.setAttribute('allow', 'clipboard-read; clipboard-write; fullscreen; autoplay; web-share');
+    nf.setAttribute('allowfullscreen', '');
+    nf.src = PORTAL + '?app=1';
+    if (f) f.parentNode.replaceChild(nf, f); else document.body.insertBefore(nf, cv);
+    f = nf;
+    clearTimeout(wait);
+    wait = setTimeout(stuck, 25000);
+  }
+  function stuck() {
+    if (ready) return;
+    if (navigator.onLine === false) { say('لا يوجد اتصال بالإنترنت.\nتفتح البوابة وحدها عند عودة الاتصال.', [{ label: 'إعادة المحاولة', run: load }]); return; }
+    say('لم تفتح البوابة داخل التطبيق.\nإن طلبت جوجل تسجيل الدخول فافتح البوابة في كروم وسجّل الدخول بحساب المكتب، ثم ارجع إلى التطبيق واضغط «إعادة المحاولة».', [
+      { label: 'إعادة المحاولة', run: load },
+      { label: 'فتحها في كروم', href: PORTAL, q: true },
+      { label: 'عرض الصفحة كما هي', run: function () { cv.classList.add('off'); }, q: true }
+    ]);
+  }
+  /* لا تُقبل الرسائل إلا من البوابة نفسها: من داخل إطارها (وهي داخل صفحة جوجل) */
+  function inFrame(w) {
+    for (var i = 0; w && f && i < 8; i++) {
+      if (w === f.contentWindow) return true;
+      if (w === w.parent) return false;
+      w = w.parent;
+    }
+    return false;
+  }
+  function send(msg) {
+    msg.bawaba = 1;
+    try { portal.postMessage(msg, origin); } catch (e) { /* أُعيد تحميلها */ }
+  }
+  window.addEventListener('message', function (ev) {
+    var d = ev.data;
+    if (!d || d.bawaba !== 1 || !inFrame(ev.source)) return;
+    if (d.t === 'hello') {
+      portal = ev.source;
+      origin = ev.origin && ev.origin !== 'null' ? ev.origin : '*';
+      ready = true;
+      clearTimeout(wait);
+      send({ t: 'shell', v: V });
+      cv.classList.add('off');
+      arm();
+      return;
+    }
+    if (ev.source !== portal) return;
+    if (d.t === 'theme') { paint(d.bar); mem.set('bw-bar', d.bar); }
+    else if (d.t === 'back') { clearTimeout(backT); if (d.handled) arm(); else tip('اضغط رجوع مرة أخرى للخروج'); }
+    else if (d.t === 'arm') arm();
+  });
+  /* زر الرجوع في أندرويد: خطوة محجوزة في سجل الصفحة، فيرجع داخل البوابة بدل أن يغلق التطبيق */
+  function arm() {
+    if (guard) return;
+    try { history.pushState({ bawaba: 1 }, ''); guard = true; } catch (e) { guard = false; }
+  }
+  window.addEventListener('popstate', function () {
+    if (!guard) return;
+    guard = false;
+    if (!ready || !portal) return;
+    send({ t: 'back' });
+    clearTimeout(backT);
+    backT = setTimeout(arm, 1500);
+  });
+  /* زر «تثبيت» حين تُفتح الصفحة في كروم ولم تُثبَّت بعد */
+  var installed = function () { return (window.matchMedia && matchMedia('(display-mode: standalone)').matches) || navigator.standalone === true; };
+  window.addEventListener('beforeinstallprompt', function (e) {
+    e.preventDefault();
+    bip = e;
+    if (!installed()) ib.classList.add('on');
+  });
+  $('ib-ok').addEventListener('click', function () {
+    ib.classList.remove('on');
+    if (bip) { bip.prompt(); bip = null; }
+  });
+  $('ib-x').addEventListener('click', function () { ib.classList.remove('on'); });
+  window.addEventListener('appinstalled', function () { ib.classList.remove('on'); tip('ثُبّتت البوابة: افتحها من أيقونتها بين تطبيقاتك'); });
+  window.addEventListener('online', function () { if (PORTAL && !ready) load(); });
+  /* رابط جديد والصفحة مفتوحة (التطبيق يعمل في الخلفية): يُقرأ دون إعادة تحميل */
+  window.addEventListener('hashchange', function () { if (/[#&]u=/.test(location.hash)) start(); });
+  if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(function () { /* تعمل دونه */ });
+  start();
+})();
+</script>
+</body>
+</html>
