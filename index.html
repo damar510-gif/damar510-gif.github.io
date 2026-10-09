@@ -39,15 +39,15 @@ iframe{position:fixed;inset:0;width:100%;height:100%;border:0;display:block;back
 <div id="ib"><span>ثبّت البوابة تطبيقًا على جوالك</span><button class="b" id="ib-ok" type="button">تثبيت</button><button class="b q" id="ib-x" type="button" aria-label="إغلاق">✕</button></div>
 <div id="t" role="status" aria-live="polite"></div>
 <script>
-/* بوابة الملفات — صفحة تثبيت تطبيق الجوال (الإصدار 2)، جهّزتها البوابة من «الإعدادات ← تطبيق الجوال».
+/* بوابة الملفات — صفحة تثبيت تطبيق الجوال (الإصدار 3)، جهّزتها البوابة من «الإعدادات ← تطبيق الجوال».
    لا تحوي رابط البوابة: يصلها من زر «تثبيت التطبيق على هذا الجوال» في البوابة (#u=…) ويُحفظ في الجوال فقط. */
 (function () {
   'use strict';
-  var V = "2";
+  var V = "3";
   var EXEC = /^https:\/\/script\.google\.com\/(?:a\/macros\/[^\/\s]+|macros)\/s\/[A-Za-z0-9_\-]+\/exec$/;
   var $ = function (id) { return document.getElementById(id); };
   var cv = $('cv'), m = $('m'), lk = $('lk'), a = $('a'), ld = $('ld'), t = $('t'), ib = $('ib');
-  var PORTAL = '', f = null, portal = null, origin = '*', ready = false, guard = false, wait = 0, backT = 0, tipT = 0, bip = null;
+  var PORTAL = '', TOK = '', f = null, portal = null, origin = '*', ready = false, guard = false, wait = 0, backT = 0, tipT = 0, bip = null;
   var mem = {
     get: function (k) { try { return localStorage.getItem(k); } catch (e) { return null; } },
     set: function (k, v) { try { localStorage.setItem(k, v); } catch (e) { /* التخزين غير متاح */ } }
@@ -83,8 +83,11 @@ iframe{position:fixed;inset:0;width:100%;height:100%;border:0;display:block;back
   }
   /* رابط البوابة القادم من زر التثبيت: يُقرأ ثم يُزال من شريط العنوان */
   function incoming() {
+    /* رمز الدخول من «صفحة الدخول» (#t=…): يُمرَّر إلى البوابة مرة واحدة، فتحفظه هي (الإصدار 3) */
+    var tk = /[#&]t=([A-Za-z0-9_\-.]{20,500})/.exec(location.hash);
+    if (tk) TOK = tk[1];
     var hit = /[#&]u=([^&]*)/.exec(location.hash), u = '';
-    if (!hit) return '';
+    if (!hit) { if (tk) { try { history.replaceState(null, '', location.pathname + location.search); } catch (e) { /* لا شيء */ } } return ''; }
     try { u = decodeURIComponent(hit[1]); } catch (e) { u = ''; }
     try { history.replaceState(null, '', location.pathname + location.search); } catch (e) { /* لا شيء */ }
     return EXEC.test(u) ? u : '';
@@ -120,7 +123,8 @@ iframe{position:fixed;inset:0;width:100%;height:100%;border:0;display:block;back
     nf.title = document.title;
     nf.setAttribute('allow', 'clipboard-read; clipboard-write; fullscreen; autoplay; web-share');
     nf.setAttribute('allowfullscreen', '');
-    nf.src = PORTAL + '?app=1';
+    nf.src = PORTAL + '?app=1' + (TOK ? '&t=' + TOK : '');
+    TOK = '';
     if (f) f.parentNode.replaceChild(nf, f); else document.body.insertBefore(nf, cv);
     f = nf;
     clearTimeout(wait);
@@ -194,7 +198,7 @@ iframe{position:fixed;inset:0;width:100%;height:100%;border:0;display:block;back
   window.addEventListener('appinstalled', function () { ib.classList.remove('on'); tip('ثُبّتت البوابة: افتحها من أيقونتها بين تطبيقاتك'); });
   window.addEventListener('online', function () { if (PORTAL && !ready) load(); });
   /* رابط جديد والصفحة مفتوحة (التطبيق يعمل في الخلفية): يُقرأ دون إعادة تحميل */
-  window.addEventListener('hashchange', function () { if (/[#&]u=/.test(location.hash)) start(); });
+  window.addEventListener('hashchange', function () { if (/[#&](u|t)=/.test(location.hash)) start(); });
   if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(function () { /* تعمل دونه */ });
   start();
 })();
